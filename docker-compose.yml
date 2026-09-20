@@ -1,16 +1,58 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: scheduling_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-securepassword}
+      POSTGRES_DB: ${DB_NAME:-scheduling}
+    volumes:
+      - pgdata:/var/lib/postgresql/data:rw
+    networks:
+      - backend-network
+
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scheduling_api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-scheduling}
+      - META_VERIFY_TOKEN=${META_VERIFY_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
+    networks:
+      - frontend-network
+      - backend-network
+    depends_on:
+      - postgres
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scheduling_web
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws/dashboard
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
+    networks:
+      - frontend-network
+
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+    internal: true
+
+volumes:
+  pgdata:

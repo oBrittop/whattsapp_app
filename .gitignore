@@ -5,3 +5,4 @@ __pycache__/
 .next/
 dist/
 db-data/, node_modules/, __pycache__/ e .env.
+docs
