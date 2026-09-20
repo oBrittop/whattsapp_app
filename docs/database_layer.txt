@@ -1,0 +1,43 @@
+======================================================
+DOCUMENTAÇÃO: CAMADA DE BANCO DE DADOS E INFRAESTRUTURA
+======================================================
+
+Nesta camada detalhamos como os dados são guardados (PostgreSQL / SQLAlchemy) e como tudo roda isolado no Docker.
+
+------------------------------------------------------
+1. CONEXÃO ORM: app/db/database.py
+------------------------------------------------------
+Aqui configuramos o "tradutor" entre o Python e o Banco.
+
+  * `engine`: É a ponte de comunicação física com o banco de dados, usando a URL (ex: postgresql://admin:senha...).
+  * `SessionLocal`: Fábrica que abre pequenas conexões de banco.
+  * Função get_db(): Uma boa prática em FastAPI. Ela garante que toda vez que formos salvar algo, uma sessão é aberta e, terminando a função, a sessão é fechada com segurança (`db.close()`).
+
+------------------------------------------------------
+2. MODELOS DAS TABELAS: app/db/models.py
+------------------------------------------------------
+Como as informações estão desenhadas no PostgreSQL.
+
+  * Classe Client:
+    Representa a tabela `clients`. Guarda o `whatsapp_id` (número do celular para saber de quem é a mensagem) e o `cpf_encrypted` (não guardamos CPF puro para não ferir LGPD e blindar contra vazamentos).
+    Tem uma relação (1 para N) com os agendamentos.
+
+  * Classe Appointment:
+    Representa a tabela `appointments`. Guarda a `appointment_date` (data solicitada), e uma "ForeignKey" (chave estrangeira) atrelando esse horário ao `Client` responsável.
+
+------------------------------------------------------
+3. INFRAESTRUTURA: docker-compose.yml
+------------------------------------------------------
+Arquivo mestre que orquestra os 3 "computadores virtuais" (Contêineres) do nosso sistema:
+
+  * Serviço Postgres: 
+    Puxa a imagem oficial do Postgres. Nota de segurança: ele NÃO tem a flag `ports`, então é impossível alguém de fora do servidor acessar o banco diretamente.
+
+  * Serviço Backend: 
+    Contêiner do Python. Ele acessa a internet para falar com a OpenAI, recebe o webhook na porta 8000 e consegue falar com o Postgres porque estão na mesma `backend-network`.
+
+  * Serviço Frontend: 
+    Contêiner Node.js rodando na porta 3000. Ele expõe a porta para o navegador do gestor poder acessar a interface gráfica na web.
+
+  * Volumes (pgdata): 
+    Impede que os dados do banco se apaguem se o computador virtual do Postgres reiniciar. É como um "HD Externo" atrelado ao contêiner.

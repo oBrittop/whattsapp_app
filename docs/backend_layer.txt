@@ -1,0 +1,54 @@
+======================================================
+DOCUMENTAÇÃO: CAMADA BACKEND (Lógica, API e IA)
+======================================================
+
+O Backend em Python (FastAPI) é o cérebro do sistema. Ele recebe mensagens da Meta, analisa usando IA, salva no banco e avisa o Frontend.
+
+------------------------------------------------------
+1. ARQUIVO PRINCIPAL: app/main.py
+------------------------------------------------------
+Este arquivo centraliza a API e coordena as demais pastas.
+  
+  * Função lifespan(app): 
+    Roda apenas uma vez quando o servidor liga. Pega os moldes de banco de dados e cria as tabelas físicas no PostgreSQL caso não existam.
+    
+  * Classe ConnectionManager:
+    Controla quem está vendo o painel frontend.
+    - `connect`: Aceita um novo navegador abrindo o painel.
+    - `disconnect`: Remove o navegador se ele fechar a aba.
+    - `broadcast`: Pega uma mensagem de texto e dispara para *todos* os painéis conectados ao mesmo tempo.
+
+  * Endpoint GET /webhook:
+    Exclusivo para a Meta/Facebook. Quando você cadastra o webhook no portal da Meta, ela envia um código aqui. Se o código bater com sua `META_VERIFY_TOKEN`, a Meta aprova sua API.
+
+  * Endpoint POST /webhook:
+    Onde as mensagens de texto do WhatsApp chegam. 
+    - Ele "descasca" o JSON complexo da Meta para achar o número do cliente (`sender_id`) e o texto digitado.
+    - Envia esse texto para a função `process_intent_with_ai()`.
+
+  * Função process_intent_with_ai():
+    - Chama o arquivo de IA (`agent.py`).
+    - Pega os dados que a IA extraiu (ex: CPF e Nome).
+    - Usa o `encrypt_data()` para ofuscar o CPF.
+    - Abre o banco de dados e cria um `Client` e um `Appointment`.
+    - Chama o `ws_manager.broadcast()` mandando um alerta para a tela do Next.js.
+    - Retorna o texto humanizado gerado pela IA.
+
+------------------------------------------------------
+2. INTELIGÊNCIA ARTIFICIAL: app/ai/agent.py
+------------------------------------------------------
+Integra o LangChain com a OpenAI (ChatGPT).
+
+  * Classe AppointmentExtraction (Pydantic):
+    Um modelo que obriga a IA a seguir regras. Diz para a LLM: "Não me devolva apenas texto, preencha essas propriedades de forma obrigatória: intenção, nome, cpf, data e a resposta do chat".
+
+  * Função analyze_message_with_llm():
+    Usa o `.with_structured_output` em cima do modelo `gpt-3.5-turbo`. A IA lê a mensagem livre do usuário e a classifica em AGENDAR ou CANCELAR, exigindo os dados faltantes caso o usuário seja vago.
+
+------------------------------------------------------
+3. SEGURANÇA: app/core/security.py
+------------------------------------------------------
+Usa a biblioteca Fernet (Criptografia Simétrica).
+
+  * encrypt_data(data): Transforma a string de CPF normal (ex: "123.456...") num código criptografado ilegível (ex: "gAAAAAB...").
+  * decrypt_data(encrypted): Faz o processo inverso caso precisemos ler o CPF de volta no backend.

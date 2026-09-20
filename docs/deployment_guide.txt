@@ -1,0 +1,58 @@
+======================================================
+GUIA DE DEPLOY: DO GITHUB PARA O UBUNTU SERVER
+======================================================
+
+Como levar o código da sua máquina para rodar em um servidor Ubuntu (Produção).
+
+------------------------------------------------------
+PASSO 1: SUBIR O CÓDIGO PARA O GITHUB (Na sua máquina)
+------------------------------------------------------
+1. No seu terminal local, inicialize o Git na pasta raiz do projeto:
+   git init
+   git add .
+   git commit -m "Primeiro commit do MVP WhatsApp"
+
+2. Crie um repositório vazio no GitHub e conecte com o seu projeto:
+   git remote add origin https://github.com/seu-usuario/seu-repositorio.git
+   git push -u origin main
+
+------------------------------------------------------
+PASSO 2: PREPARAR O SERVIDOR UBUNTU
+------------------------------------------------------
+Acesse seu servidor Ubuntu via SSH (ex: `ssh root@ip-do-servidor`).
+
+1. Atualize o servidor e instale o Git e o Docker:
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install git docker.io docker-compose -y
+
+2. Inicie e habilite o Docker para rodar sempre que o servidor ligar:
+   sudo systemctl start docker
+   sudo systemctl enable docker
+
+------------------------------------------------------
+PASSO 3: BAIXAR E RODAR O SISTEMA NO SERVIDOR
+------------------------------------------------------
+1. Clone o seu repositório do GitHub para dentro do servidor:
+   git clone https://github.com/seu-usuario/seu-repositorio.git
+   cd seu-repositorio
+
+2. (MUITO IMPORTANTE) Crie as variáveis de ambiente. 
+   O Git ignora o arquivo `.env` por segurança. Então crie um arquivo novo no servidor:
+   nano .env
+   
+   E cole as suas chaves reais:
+   META_VERIFY_TOKEN=seu_token_criado_no_painel_da_meta
+   OPENAI_API_KEY=sk-sua_chave_real_da_openai
+   ENCRYPTION_KEY=uma_chave_fernet_gerada_para_os_cpfs
+
+3. Construa e suba a aplicação com o Docker:
+   sudo docker-compose up -d --build
+
+Neste momento, a API FastAPI estará rodando na porta 8000 e o Next.js na porta 3000 do seu Servidor Ubuntu!
+
+------------------------------------------------------
+PASSO 4: EXPOR PARA A INTERNET COM HTTPS (Obrigatório para a Meta)
+------------------------------------------------------
+A API do WhatsApp (Meta) exige que o seu Webhook (http://seu-ip:8000/webhook) tenha um cadeado de segurança (HTTPS).
+
+A forma mais fácil e moderna de fazer isso no seu "servidor portátil" é usando um Túnel do Cloudflare (Cloudflare Tunnels) ou configurando um Proxy Reverso com Nginx e Certbot (Let's Encrypt).

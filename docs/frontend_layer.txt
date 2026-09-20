@@ -1,0 +1,40 @@
+======================================================
+DOCUMENTAÇÃO: CAMADA FRONTEND (Visualização / Next.js)
+======================================================
+
+Esta camada é responsável pela interface do gestor. Construída com Next.js (App Router), React 18 e Tailwind CSS, ela reflete em tempo real o que o Agente de IA está fazendo.
+
+------------------------------------------------------
+1. ESTRUTURA DE ARQUIVOS E DIRETÓRIOS PRINCIPAIS
+------------------------------------------------------
+- package.json: Lista as dependências do projeto (Next.js, React, Tailwind). Aqui ficam os scripts como `npm run dev` que iniciam o servidor.
+- tailwind.config.js / postcss.config.js: Arquivos que configuram o Tailwind CSS, definindo em quais pastas ele deve procurar classes para compilar o visual.
+- src/app/globals.css: Define as cores principais (fundo claro/escuro) e importa os pacotes base do Tailwind.
+
+------------------------------------------------------
+2. ARQUIVOS DE ROTA E LAYOUT (src/app/)
+------------------------------------------------------
+- layout.tsx:
+  - Função RootLayout(): É a base de todas as páginas. Ele define o <html> e o <body> da aplicação e injeta os metadados (título da aba do navegador).
+
+- page.tsx:
+  - Função Home(): É a página inicial do painel. Ela renderiza o cabeçalho ("Gestão de Atendimentos") e chama o componente principal (DashboardPanel) que vai exibir a lista.
+
+------------------------------------------------------
+3. COMPONENTES: O CORAÇÃO DO FRONTEND
+------------------------------------------------------
+- src/components/organisms/DashboardPanel.tsx:
+  Este é o arquivo mais importante do Front. Ele é responsável por conectar ao Backend e mostrar os dados.
+
+  * Estados (useState):
+    - `events`: Uma lista que guarda todos os agendamentos ou cancelamentos que chegam da IA.
+    - `isConnected`: Um booleano (verdadeiro/falso) que indica se o WebSocket com o Backend está online ou caiu.
+
+  * Efeitos (useEffect):
+    - A função dentro do `useEffect` é ativada assim que o componente aparece na tela.
+    - Ela cria um `new WebSocket(wsUrl)` conectando na porta do nosso Python.
+    - `ws.onmessage`: Sempre que o Backend manda uma mensagem ("novo agendamento!"), essa função pega a mensagem, transforma de JSON para Objeto e adiciona no topo da lista `events`.
+    
+  * Renderização (return):
+    - Exibe uma bolinha/status mostrando se o painel está "Online" ou "Desconectado".
+    - Faz um loop (`events.map`) para desenhar um cartão bonito na tela para cada cliente que o robô atendeu, mostrando a cor Azul (Agendamento) ou Vermelha (Cancelamento).
